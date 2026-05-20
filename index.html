@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RITUAL</title>
+
+<!-- PWA / iOS home screen -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RITUAL">
+<meta name="theme-color" content="#0f0d0a">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-startup-image" href="icons/icon-512.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink: #0f0d0a;
+  --paper: #f5f0e8;
+  --cream: #ede8dc;
+  --warm: #c8b89a;
+  --rust: #b85c38;
+  --gold: #c9a84c;
+  --sage: #6b7c5e;
+  --dim: #8a8070;
+  --line: rgba(15,13,10,0.11);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --nav-h: 68px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* grain */
+body::after {
+  content:''; position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:9998; opacity:0.55;
+}
+
+/* ── SHELL ── */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: var(--safe-top);
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom));
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+/* ── STATUS BAR SPACER ── */
+.status-bar {
+  height: var(--safe-top);
+  background: var(--paper);
+  flex-shrink: 0;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+  border-bottom: 1.5px solid var(--line);
+  flex-shrink: 0;
+  background: var(--paper);
+}
+
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.7rem;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+.logo span { color: var(--rust); }
+
+.streak-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+.streak-pill .n { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0; }
+
+/* ── PAGES ── */
+.pages {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(20px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.page.active {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(0);
+}
+
+/* scrollable content padding */
+.page-inner { padding: 20px 20px 16px; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: calc(var(--nav-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--ink);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 10px;
+  z-index: 100;
+}
+
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-icon {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  opacity: 0.45;
+  transition: opacity 0.15s, transform 0.2s;
+}
+
+.nav-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--warm);
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+
+.nav-btn.active .nav-icon,
+.nav-btn.active .nav-label { opacity: 1; }
+.nav-btn.active .nav-icon { transform: scale(1.1); }
+
+/* ── TODAY PAGE ── */
+.day-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+  animation: fadeUp 0.35s ease both;
+}
+
+.day-name-big {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.6rem;
+  line-height: 1;
+}
+
+.day-meta {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border-left: 2px solid var(--warm);
+  padding-left: 8px;
+  line-height: 1.4;
+}
+
+/* progress */
+.prog-wrap { margin-bottom: 20px; animation: fadeUp 0.35s 0.04s ease both; }
+
+.prog-labels {
+  display: flex; justify-content: space-between;
+  font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 6px;
+}
+
+.prog-track {
+  height: 5px; background: var(--cream);
+  border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+}
+
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--rust), var(--gold));
+  border-radius: 3px;
+  transition: width 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* group label */
+.group-lbl {
+  font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--dim); padding: 14px 0 6px;
+  border-bottom: 1px solid var(--line); margin-bottom: 2px;
+  animation: fadeUp 0.35s 0.08s ease both;
+}
+
+/* task row */
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: fadeUp 0.35s 0.1s ease both;
+  active: scale(0.98);
+}
+
+.task-item:active { opacity: 0.7; }
+
+.t-time {
+  width: 40px;
+  font-size: 0.62rem; color: var(--dim);
+  letter-spacing: 0.04em; font-weight: 500;
+  text-align: right; flex-shrink: 0;
+}
+
+.t-body { flex: 1; min-width: 0; }
+
+.t-name {
+  font-size: 0.88rem;
+  color: var(--ink);
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap;
+  transition: color 0.2s;
+}
+
+.t-note { font-size: 0.65rem; color: var(--dim); margin-top: 2px; }
+
+.tag {
+  font-size: 0.54rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 5px; border-radius: 2px; font-weight: 500; flex-shrink: 0;
+}
+.tag.health { background:#e8f0e4; color:var(--sage); }
+.tag.mind   { background:#f0ede4; color:#8a7040; }
+.tag.work   { background:#f0e8e4; color:var(--rust); }
+.tag.body   { background:#e4eaf0; color:#406080; }
+
+.t-check {
+  width: 24px; height: 24px;
+  border: 1.5px solid var(--warm); border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.18s;
+}
+
+.t-check svg {
+  width: 13px; height: 13px;
+  opacity: 0; transform: scale(0.4);
+  transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  stroke: var(--paper); fill: none;
+  stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+}
+
+.task-item.done .t-check { background: var(--rust); border-color: var(--rust); }
+.task-item.done .t-check svg { opacity:1; transform:scale(1); }
+.task-item.done .t-name { color: var(--dim); text-decoration: line-through; text-decoration-color: var(--warm); }
+
+/* add task bar */
+.add-bar {
+  display: flex; gap: 8px;
+  padding: 16px 0 4px;
+  animation: fadeUp 0.35s 0.2s ease both;
+}
+
+.add-inp {
+  flex: 1;
+  border: none; border-bottom: 1.5px dashed var(--warm);
+  background: transparent;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem; color: var(--ink);
+  padding: 6px 0; outline: none;
+  -webkit-appearance: none;
+}
+.add-inp::placeholder { color: var(--warm); font-style: italic; }
+.add-inp:focus { border-color: var(--rust); }
+
+.add-btn-small {
+  background: var(--ink); color: var(--paper);
+  border: none; padding: 8px 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; cursor: pointer;
+  border-radius: 2px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.add-btn-small:active { background: var(--rust); }
+
+/* ── STATS PAGE ── */
+.stats-hero {
+  text-align: center;
+  padding: 20px 0 24px;
+  animation: fadeUp 0.35s ease both;
+}
+
+.stats-big {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 5rem; letter-spacing: 0.05em;
+  color: var(--rust); line-height: 1;
+}
+
+.stats-big-lbl {
+  font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--dim); margin-top: 4px;
+}
+
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 20px;
+  animation: fadeUp 0.35s 0.06s ease both;
+}
+
+.stat-card {
+  background: var(--cream);
+  border: 1.5px solid var(--line);
+  border-radius: 4px; padding: 16px;
+  text-align: center;
+}
+
+.sc-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.6rem; line-height: 1;
+  color: var(--ink);
+}
+.sc-lbl {
+  font-size: 0.58rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--dim); margin-top: 3px;
+}
+
+/* week heatmap */
+.week-section { animation: fadeUp 0.35s 0.1s ease both; }
+
+.section-title {
+  font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content:''; flex:1; height:1px; background:var(--line); }
+
+.week-row {
+  display: flex; gap: 6px; justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.week-cell {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 5px;
+}
+
+.wc-lbl {
+  font-size: 0.56rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--dim);
+}
+
+.wc-dot {
+  width: 100%; aspect-ratio: 1;
+  border-radius: 3px; background: var(--cream);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.58rem; color: var(--dim);
+  transition: all 0.2s;
+}
+.wc-dot.full { background:var(--rust); border-color:var(--rust); color:var(--paper); }
+.wc-dot.partial { background:var(--gold); border-color:var(--gold); color:var(--ink); }
+.wc-dot.today { box-shadow: 0 0 0 2px var(--ink); }
+
+/* ── JOURNAL PAGE ── */
+.intention-card {
+  background: var(--cream);
+  border-left: 3px solid var(--rust);
+  border-radius: 0 4px 4px 0;
+  padding: 16px;
+  margin-bottom: 16px;
+  animation: fadeUp 0.35s ease both;
+}
+
+.int-lbl {
+  font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--rust); margin-bottom: 8px;
+}
+
+.int-input {
+  font-family: 'DM Serif Display', serif;
+  font-style: italic; font-size: 1rem;
+  color: var(--ink); background: none;
+  border: none; outline: none; width: 100%;
+  line-height: 1.6; resize: none;
+  -webkit-appearance: none;
+  min-height: 60px;
+}
+.int-input::placeholder { color: var(--warm); }
+
+/* mood */
+.mood-card {
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 4px; padding: 16px; margin-bottom: 16px;
+  animation: fadeUp 0.35s 0.06s ease both;
+}
+
+.mood-row {
+  display: flex; gap: 6px; margin-top: 10px;
+}
+
+.mood-btn {
+  flex: 1; height: 44px; border: 1.5px solid var(--line);
+  background: var(--paper); border-radius: 4px;
+  cursor: pointer; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mood-btn:active { transform: scale(0.92); }
+.mood-btn.selected { border-color: var(--rust); background: #fff; transform: scale(1.08); }
+
+/* quote */
+.quote-card {
+  border-top: 1.5px solid var(--line);
+  padding-top: 16px;
+  animation: fadeUp 0.35s 0.12s ease both;
+}
+
+.q-text {
+  font-family: 'DM Serif Display', serif;
+  font-style: italic; font-size: 0.9rem;
+  color: var(--ink); line-height: 1.65; margin-bottom: 6px;
+}
+
+.q-author {
+  font-size: 0.6rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--dim);
+}
+
+/* ── SETTINGS PAGE ── */
+.settings-section { margin-bottom: 24px; animation: fadeUp 0.35s ease both; }
+
+.set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+}
+
+.set-label { font-size: 0.82rem; color: var(--ink); }
+.set-sub { font-size: 0.65rem; color: var(--dim); margin-top: 2px; }
+
+.set-btn {
+  background: var(--ink); color: var(--paper);
+  border: none; padding: 8px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem; letter-spacing: 0.1em;
+  text-transform: uppercase; cursor: pointer;
+  border-radius: 2px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.set-btn:active { background: var(--rust); }
+.set-btn.danger { background: var(--rust); }
+.set-btn.danger:active { background: #8c3a20; }
+
+/* install banner */
+.install-banner {
+  background: var(--ink); color: var(--paper);
+  border-radius: 6px; padding: 16px;
+  margin-bottom: 20px;
+  animation: fadeUp 0.35s ease both;
+  display: none;
+}
+.install-banner.show { display: block; }
+.ib-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem; letter-spacing: 0.1em; margin-bottom: 6px;
+}
+.ib-steps { font-size: 0.72rem; line-height: 1.9; color: var(--warm); }
+.ib-steps b { color: var(--paper); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+@keyframes pop {
+  0%   { transform:scale(1); }
+  45%  { transform:scale(0.88); }
+  100% { transform:scale(1); }
+}
+
+.just-popped { animation: pop 0.22s ease; }
+
+/* confetti */
+.confetti {
+  position: fixed; width: 7px; height: 7px;
+  border-radius: 1px; pointer-events: none;
+  animation: cfAll 0.9s ease forwards; z-index: 9999;
+}
+@keyframes cfAll {
+  0%   { opacity:1; transform:translateY(0) rotate(0deg); }
+  100% { opacity:0; transform:translateY(90px) rotate(400deg); }
+}
+
+/* toast */
+.toast {
+  position: fixed; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  left: 50%; transform: translateX(-50%) translateY(0);
+  background: var(--ink); color: var(--paper);
+  padding: 10px 20px; border-radius: 20px;
+  font-size: 0.72rem; letter-spacing: 0.08em;
+  white-space: nowrap; z-index: 9997;
+  animation: toastIn 0.2s ease, toastOut 0.2s 1.8s ease forwards;
+}
+@keyframes toastIn { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+@keyframes toastOut { to { opacity:0; transform:translateX(-50%) translateY(10px); } }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">RITU<span>A</span>L</div>
+    <div id="topDateEl" style="font-size:0.62rem;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;"></div>
+    <div class="streak-pill">🔥 <span class="n" id="streakNum">0</span></div>
+  </div>
+
+  <!-- PAGES -->
+  <div class="pages">
+
+    <!-- TODAY -->
+    <div class="page active" id="page-today">
+      <div class="page-inner">
+        <div class="day-hero">
+          <div class="day-name-big" id="dayNameEl"></div>
+          <div class="day-meta" id="dayMetaEl"></div>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-labels">
+            <span>Progress</span>
+            <span id="progPct">0%</span>
+          </div>
+          <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        </div>
+        <div id="taskList"></div>
+        <div class="add-bar">
+          <input class="add-inp" id="addInp" type="text" placeholder="Add a habit or task…" enterkeyhint="done">
+          <button class="add-btn-small" id="addBtn">+ Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="page" id="page-stats">
+      <div class="page-inner">
+        <div class="stats-hero">
+          <div class="stats-big" id="sBig">0</div>
+          <div class="stats-big-lbl">Day Streak 🔥</div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="sc-num" id="sDone">0</div><div class="sc-lbl">Done Today</div></div>
+          <div class="stat-card"><div class="sc-num" id="sLeft">0</div><div class="sc-lbl">Remaining</div></div>
+          <div class="stat-card"><div class="sc-num" id="sBest">0</div><div class="sc-lbl">Best Streak</div></div>
+          <div class="stat-card"><div class="sc-num" id="sTotal">0</div><div class="sc-lbl">Total Tasks</div></div>
+        </div>
+        <div class="week-section">
+          <div class="section-title">This Week</div>
+          <div class="week-row" id="weekRowEl"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOURNAL -->
+    <div class="page" id="page-journal">
+      <div class="page-inner">
+        <div class="intention-card">
+          <div class="int-lbl">Today's Intention</div>
+          <textarea class="int-input" id="intentionEl" placeholder="Set your intention for today…" rows="3"></textarea>
+        </div>
+        <div class="mood-card">
+          <div class="section-title">Morning Mood</div>
+          <div class="mood-row" id="moodRowEl">
+            <button class="mood-btn" data-mood="😴">😴</button>
+            <button class="mood-btn" data-mood="😐">😐</button>
+            <button class="mood-btn" data-mood="🙂">🙂</button>
+            <button class="mood-btn" data-mood="😊">😊</button>
+            <button class="mood-btn" data-mood="🔥">🔥</button>
+          </div>
+        </div>
+        <div class="quote-card">
+          <div class="section-title">Daily Wisdom</div>
+          <div class="q-text" id="quoteEl"></div>
+          <div class="q-author" id="quoteAuthorEl"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-inner">
+        <div class="install-banner" id="installBanner">
+          <div class="ib-title">📲 Add to Home Screen</div>
+          <div class="ib-steps">
+            <b>Safari:</b> tap the Share button (□↑)<br>
+            then <b>"Add to Home Screen"</b><br>
+            RITUAL will open like a native app!
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="section-title">Data</div>
+          <div class="set-row">
+            <div><div class="set-label">Export Today's Log</div><div class="set-sub">Download a text summary</div></div>
+            <button class="set-btn" onclick="exportLog()">Export</button>
+          </div>
+          <div class="set-row">
+            <div><div class="set-label">Reset Today</div><div class="set-sub">Uncheck all tasks for today</div></div>
+            <button class="set-btn" onclick="resetDay()">Reset</button>
+          </div>
+          <div class="set-row">
+            <div><div class="set-label">Clear All Data</div><div class="set-sub">Erase streaks & history</div></div>
+            <button class="set-btn danger" onclick="clearAll()">Clear</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="section-title">About</div>
+          <div class="set-row">
+            <div><div class="set-label">RITUAL</div><div class="set-sub">Version 1.0 · Daily Routine Tracker</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /pages -->
+</div><!-- /shell -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="today" onclick="nav(this)">
+    <div class="nav-icon">✓</div>
+    <div class="nav-label">Today</div>
+  </button>
+  <button class="nav-btn" data-page="stats" onclick="nav(this)">
+    <div class="nav-icon">📊</div>
+    <div class="nav-label">Stats</div>
+  </button>
+  <button class="nav-btn" data-page="journal" onclick="nav(this)">
+    <div class="nav-icon">✦</div>
+    <div class="nav-label">Journal</div>
+  </button>
+  <button class="nav-btn" data-page="settings" onclick="nav(this)">
+    <div class="nav-icon">⚙︎</div>
+    <div class="nav-label">Settings</div>
+  </button>
+</nav>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const QUOTES = [
+  { text:'We are what we repeatedly do. Excellence is not an act, but a habit.', author:'— Aristotle' },
+  { text:'The secret of your future is hidden in your daily routine.', author:'— Mike Murdock' },
+  { text:'Routine, in an intelligent person, is a sign of ambition.', author:'— W.H. Auden' },
+  { text:'Small daily improvements over time lead to stunning results.', author:'— Robin Sharma' },
+  { text:'You will never change your life until you change something you do daily.', author:'— John C. Maxwell' },
+  { text:'A ritual is not a habit — it is an act of devotion to your future self.', author:'— Unknown' },
+  { text:'Motivation gets you started. Habit keeps you going.', author:'— Jim Ryun' },
+];
+
+const DEFAULTS = [
+  { id:1,  time:'06:00', name:'Wake up & hydrate',       tag:'health', note:'2 glasses of water', done:false },
+  { id:2,  time:'06:15', name:'Morning meditation',       tag:'mind',   note:'10 minutes',         done:false },
+  { id:3,  time:'06:30', name:'Exercise',                 tag:'body',   note:'30 min workout',     done:false },
+  { id:4,  time:'07:15', name:'Cold shower',              tag:'body',   note:'',                   done:false },
+  { id:5,  time:'07:30', name:'Healthy breakfast',        tag:'health', note:'No screens',         done:false },
+  { id:6,  time:'08:00', name:'Review daily goals',       tag:'mind',   note:'3 priorities',       done:false },
+  { id:7,  time:'08:30', name:'Deep work block',          tag:'work',   note:'90 min, no distract',done:false },
+  { id:8,  time:'10:00', name:'Break & stretch',          tag:'body',   note:'5 min walk',         done:false },
+  { id:9,  time:'12:30', name:'Lunch away from desk',     tag:'health', note:'',                   done:false },
+  { id:10, time:'13:00', name:'Read',                     tag:'mind',   note:'20 pages',           done:false },
+  { id:11, time:'17:00', name:'Wrap up & plan tomorrow',  tag:'work',   note:'Brain dump',         done:false },
+  { id:12, time:'21:00', name:'No screens',               tag:'mind',   note:'1 hr before sleep',  done:false },
+  { id:13, time:'21:30', name:'Journal',                  tag:'mind',   note:'3 gratitudes',       done:false },
+  { id:14, time:'22:00', name:'Wind down & sleep',        tag:'health', note:'Target 8 hours',     done:false },
+];
+
+// ── STATE ─────────────────────────────────────────────────
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function loadState() {
+  const today = todayKey();
+  let s;
+  try { s = JSON.parse(localStorage.getItem('ritual_v2') || 'null'); } catch(e) { s = null; }
+  if (!s || s.date !== today) {
+    const prev = s || {};
+    const wasComplete = prev.tasks && prev.tasks.length && prev.tasks.every(t => t.done);
+    const prevStreak = prev.streak || 0;
+    // Only increment streak if yesterday had full completion
+    const streak = wasComplete ? prevStreak + 1 : prevStreak;
+    const best = Math.max(streak, prev.best || 0);
+    const weekData = prev.weekData || {};
+    if (prev.date && prev.tasks) {
+      weekData[prev.date] = Math.round(prev.tasks.filter(t=>t.done).length / prev.tasks.length * 100);
+    }
+    return { date: today, tasks: JSON.parse(JSON.stringify(DEFAULTS)), streak, best, mood: null, intention: '', weekData };
+  }
+  return s;
+}
+
+let S = loadState();
+
+function save() { localStorage.setItem('ritual_v2', JSON.stringify(S)); }
+
+// ── NAVIGATION ────────────────────────────────────────────
+function nav(btn) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const page = document.getElementById('page-' + btn.dataset.page);
+  if (page) page.classList.add('active');
+  if (btn.dataset.page === 'stats') renderStats();
+  if (btn.dataset.page === 'settings') checkInstall();
+}
+
+// ── HEADER ────────────────────────────────────────────────
+function renderHeader() {
+  const now = new Date();
+  document.getElementById('dayNameEl').textContent = DAYS[now.getDay()];
+  document.getElementById('dayMetaEl').innerHTML = MONTHS[now.getMonth()] + ' ' + now.getDate() + '<br>' + now.getFullYear();
+  document.getElementById('topDateEl').textContent = MONTHS[now.getMonth()] + ' ' + now.getDate();
+  document.getElementById('streakNum').textContent = S.streak;
+}
+
+// ── TASKS ─────────────────────────────────────────────────
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+
+  const groups = [
+    { label: 'Morning',   tasks: S.tasks.filter(t => parseInt(t.time) < 12) },
+    { label: 'Afternoon', tasks: S.tasks.filter(t => parseInt(t.time) >= 12 && parseInt(t.time) < 17) },
+    { label: 'Evening',   tasks: S.tasks.filter(t => parseInt(t.time) >= 17) },
+  ];
+
+  groups.forEach(g => {
+    if (!g.tasks.length) return;
+    const lbl = document.createElement('div');
+    lbl.className = 'group-lbl';
+    lbl.textContent = g.label;
+    list.appendChild(lbl);
+
+    g.tasks.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'task-item' + (t.done ? ' done' : '');
+      el.dataset.id = t.id;
+      el.innerHTML = `
+        <div class="t-time">${t.time}</div>
+        <div class="t-body">
+          <div class="t-name">${t.name} <span class="tag ${t.tag}">${t.tag}</span></div>
+          ${t.note ? `<div class="t-note">${t.note}</div>` : ''}
+        </div>
+        <div class="t-check">
+          <svg viewBox="0 0 16 16"><polyline points="2,8 6,13 14,4"/></svg>
+        </div>
+      `;
+      el.addEventListener('click', () => toggleTask(t.id, el));
+      list.appendChild(el);
+    });
+  });
+
+  renderProgress();
+}
+
+function toggleTask(id, el) {
+  const t = S.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  el.classList.toggle('done', t.done);
+  el.classList.add('just-popped');
+  el.addEventListener('animationend', () => el.classList.remove('just-popped'), { once: true });
+  if (t.done) confetti(el);
+  // Check all done
+  if (S.tasks.every(x => x.done)) {
+    setTimeout(() => {
+      S.streak += 1;
+      S.best = Math.max(S.streak, S.best);
+      document.getElementById('streakNum').textContent = S.streak;
+      toast('🔥 All done! Streak: ' + S.streak + ' days!');
+      save();
+    }, 300);
+  }
+  save();
+  renderProgress();
+}
+
+function renderProgress() {
+  const done = S.tasks.filter(t => t.done).length;
+  const total = S.tasks.length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('progPct').textContent = pct + '%';
+}
+
+// ── ADD TASK ──────────────────────────────────────────────
+document.getElementById('addBtn').addEventListener('click', addTask);
+document.getElementById('addInp').addEventListener('keydown', e => { if (e.key === 'Enter') { addTask(); e.target.blur(); } });
+
+function addTask() {
+  const inp = document.getElementById('addInp');
+  const name = inp.value.trim();
+  if (!name) return;
+  S.tasks.push({ id: Date.now(), time: '09:00', name, tag: 'work', note: '', done: false });
+  inp.value = '';
+  save();
+  renderTasks();
+  toast('Task added ✓');
+}
+
+// ── STATS ─────────────────────────────────────────────────
+function renderStats() {
+  const done = S.tasks.filter(t => t.done).length;
+  document.getElementById('sBig').textContent  = S.streak;
+  document.getElementById('sDone').textContent = done;
+  document.getElementById('sLeft').textContent = S.tasks.length - done;
+  document.getElementById('sBest').textContent = S.best;
+  document.getElementById('sTotal').textContent = S.tasks.length;
+
+  // Week heatmap
+  const row = document.getElementById('weekRowEl');
+  row.innerHTML = '';
+  const now = new Date();
+  const todayDow = now.getDay();
+  const labels = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+  for (let i = 0; i < 7; i++) {
+    const offset = i - ((todayDow + 6) % 7);
+    const d = new Date(now); d.setDate(now.getDate() + offset);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const isToday = offset === 0;
+    const isFuture = offset > 0;
+    const pct = isToday
+      ? Math.round(S.tasks.filter(t=>t.done).length / Math.max(S.tasks.length,1) * 100)
+      : (S.weekData[key] ?? null);
+
+    let cls = 'wc-dot', lbl = '';
+    if (!isFuture && pct !== null) {
+      if (pct >= 80) { cls += ' full'; lbl = '✓'; }
+      else if (pct > 0) { cls += ' partial'; lbl = pct + '%'; }
+    }
+    if (isToday) cls += ' today';
+
+    const cell = document.createElement('div');
+    cell.className = 'week-cell';
+    cell.innerHTML = `<div class="wc-lbl">${labels[i]}</div><div class="${cls}">${lbl}</div>`;
+    row.appendChild(cell);
+  }
+}
+
+// ── JOURNAL ───────────────────────────────────────────────
+function renderJournal() {
+  const intentEl = document.getElementById('intentionEl');
+  intentEl.value = S.intention || '';
+  intentEl.addEventListener('input', () => { S.intention = intentEl.value; save(); });
+
+  document.querySelectorAll('.mood-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.mood === S.mood);
+    btn.addEventListener('click', () => {
+      S.mood = btn.dataset.mood;
+      save();
+      document.querySelectorAll('.mood-btn').forEach(b => b.classList.toggle('selected', b.dataset.mood === S.mood));
+    });
+  });
+
+  const q = QUOTES[new Date().getDay() % QUOTES.length];
+  document.getElementById('quoteEl').textContent = `"${q.text}"`;
+  document.getElementById('quoteAuthorEl').textContent = q.author;
+}
+
+// ── SETTINGS ACTIONS ──────────────────────────────────────
+function resetDay() {
+  if (!confirm('Reset all tasks for today?')) return;
+  S.tasks.forEach(t => t.done = false);
+  save(); renderTasks(); toast('Tasks reset ✓');
+}
+
+function clearAll() {
+  if (!confirm('Erase ALL data? This cannot be undone.')) return;
+  localStorage.removeItem('ritual_v2');
+  S = loadState(); renderAll(); toast('Data cleared');
+}
+
+function exportLog() {
+  const now = new Date();
+  const ds = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()} ${now.getFullYear()}`;
+  const done = S.tasks.filter(t => t.done);
+  const rem  = S.tasks.filter(t => !t.done);
+  let log = `RITUAL — Daily Log\n${ds}\n${'─'.repeat(38)}\n\n`;
+  log += `INTENTION: ${S.intention || '(none)'}\nMOOD: ${S.mood || '(not set)'}\n\n`;
+  log += `COMPLETED (${done.length}/${S.tasks.length}):\n`;
+  done.forEach(t => log += `  ✓  ${t.time}  ${t.name}\n`);
+  if (rem.length) { log += `\nREMAINING:\n`; rem.forEach(t => log += `  ○  ${t.time}  ${t.name}\n`); }
+  log += `\n${'─'.repeat(38)}\nStreak: ${S.streak}  |  Best: ${S.best}`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([log], { type:'text/plain' }));
+  a.download = `ritual-${now.toISOString().slice(0,10)}.txt`;
+  a.click();
+}
+
+function checkInstall() {
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  document.getElementById('installBanner').classList.toggle('show', !isStandalone);
+}
+
+// ── CONFETTI ──────────────────────────────────────────────
+function confetti(el) {
+  const rect = el.getBoundingClientRect();
+  const cx = rect.right - 16, cy = rect.top + 12;
+  const colors = ['#b85c38','#c9a84c','#6b7c5e','#406080','#0f0d0a'];
+  for (let i = 0; i < 8; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'confetti';
+    dot.style.cssText = `left:${cx+(Math.random()-.5)*50}px;top:${cy}px;background:${colors[i%colors.length]};animation-delay:${Math.random()*.15}s`;
+    document.body.appendChild(dot);
+    setTimeout(() => dot.remove(), 1100);
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+function renderAll() {
+  renderHeader();
+  renderTasks();
+  renderJournal();
+}
+
+renderAll();
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
