@@ -826,8 +826,9 @@ function toggleTask(id, el) {
   el.classList.add('just-popped');
   el.addEventListener('animationend', () => el.classList.remove('just-popped'), { once: true });
   if (t.done) confetti(el);
-  // Check all done
-  if (S.tasks.every(x => x.done)) {
+  // Only award streak once per day when all tasks are completed
+  if (S.tasks.every(x => x.done) && S.streakAwardedDate !== todayKey()) {
+    S.streakAwardedDate = todayKey();
     setTimeout(() => {
       S.streak += 1;
       S.best = Math.max(S.streak, S.best);
