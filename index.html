@@ -344,23 +344,27 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
         <div class="add-bar"><button class="add-fab" onclick="openSheet(null)">+ New Task</button></div>
       </div>
     </div>
-
-    <!-- STATS -->
-    <div class="page" id="page-stats">
+    <div class="page" id="page-calendar">
       <div class="page-inner">
-        <div class="stats-hero">
-          <div class="stats-big" id="sBig">0</div>
-          <div class="stats-big-lbl">Day Streak 🔥</div>
+        <div class="cal-header">
+          <button class="cal-nav" onclick="calPrev()">‹</button>
+          <div class="cal-month-title" id="calMonthTitle"></div>
+          <button class="cal-nav" onclick="calNext()">›</button>
         </div>
-        <div class="stats-grid">
-          <div class="stat-card"><div class="sc-num" id="sDone">0</div><div class="sc-lbl">Done Today</div></div>
-          <div class="stat-card"><div class="sc-num" id="sLeft">0</div><div class="sc-lbl">Remaining</div></div>
-          <div class="stat-card"><div class="sc-num" id="sBest">0</div><div class="sc-lbl">Best Streak</div></div>
-          <div class="stat-card"><div class="sc-num" id="sTotal">0</div><div class="sc-lbl">Total Tasks</div></div>
+        <div class="cal-dow-row">
+          <div class="cal-dow">Su</div><div class="cal-dow">Mo</div><div class="cal-dow">Tu</div>
+          <div class="cal-dow">We</div><div class="cal-dow">Th</div><div class="cal-dow">Fr</div>
+          <div class="cal-dow">Sa</div>
         </div>
-        <div class="week-section">
-          <div class="section-title">This Week</div>
-          <div class="week-row" id="weekRowEl"></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend">
+          <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--rust)"></div>Full day</div>
+          <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--gold)"></div>Partial</div>
+          <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--line)"></div>No data</div>
+        </div>
+        <div class="cal-selected-info" id="calInfo">
+          <div class="cal-sel-date">Select a day</div>
+          <div class="cal-sel-sub">Tap any date to see details</div>
         </div>
       </div>
     </div>
@@ -458,13 +462,34 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
         </div>
       </div>
     </div>
-
     <!-- SETTINGS -->
     <div class="page" id="page-settings">
       <div class="page-inner">
         <div class="install-banner" id="installBanner">
           <div class="ib-title">📲 Add to Home Screen</div>
           <div class="ib-steps"><b>Safari:</b> tap the Share button (□↑)<br>then <b>"Add to Home Screen"</b></div>
+        </div>
+        <div class="settings-section">
+          <div class="section-title">Backup & Restore</div>
+          <div class="set-row">
+            <div><div class="set-label">Save Backup</div><div class="set-sub">Export all data as a .json file</div></div>
+            <button class="set-btn" onclick="backupExport()">Backup</button>
+          </div>
+          <div class="set-row">
+            <div><div class="set-label">Restore Backup</div><div class="set-sub">Load from a saved .json file</div></div>
+            <button class="set-btn" onclick="openRestoreSheet()">Restore</button>
+          </div>
+          <div class="set-row">
+            <div><div class="set-label">Manage Backups</div><div class="set-sub">View & restore saved snapshots</div></div>
+            <button class="set-btn" onclick="openBackupManager()">Manage</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="section-title">Monthly Report</div>
+          <div class="set-row">
+            <div><div class="set-label">Generate PDF Report</div><div class="set-sub">Full monthly breakdown with charts</div></div>
+            <button class="set-btn" style="background:var(--rust)" onclick="openReportSheet()">📄 PDF</button>
+          </div>
         </div>
         <div class="settings-section">
           <div class="section-title">Data</div>
@@ -599,7 +624,6 @@ function nav(btn){
   btn.classList.add('active');
   const page=document.getElementById('page-'+btn.dataset.page);
   if(page) page.classList.add('active');
-  if(btn.dataset.page==='stats') renderStats();
   if(btn.dataset.page==='calendar') renderCalendar();
   if(btn.dataset.page==='graphs') renderGraphs();
   if(btn.dataset.page==='settings') checkInstall();
@@ -746,39 +770,13 @@ function deleteTask(){
   save(); renderTasks(); closeSheet(); toast('Task deleted');
 }
 
-// ── STATS ────────────────────────────────────────────────
-function renderStats(){
-  const done=(S.tasks||[]).filter(t=>t.done).length;
-  document.getElementById('sBig').textContent=S.streak||0;
-  document.getElementById('sDone').textContent=done;
-  document.getElementById('sLeft').textContent=(S.tasks||[]).length-done;
-  document.getElementById('sBest').textContent=S.best||0;
-  document.getElementById('sTotal').textContent=(S.tasks||[]).length;
-  const row=document.getElementById('weekRowEl');
-  row.innerHTML='';
-  const now=new Date(), todayDow=now.getDay();
-  const labels=['Mo','Tu','We','Th','Fr','Sa','Su'];
-  for(let i=0;i<7;i++){
-    const offset=i-((todayDow+6)%7);
-    const d=new Date(now); d.setDate(now.getDate()+offset);
-    const key=`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    const isToday=offset===0, isFuture=offset>0;
-    const pct=isToday?Math.round((S.tasks||[]).filter(t=>t.done).length/Math.max((S.tasks||[]).length,1)*100):((S.weekData||{})[key]??null);
-    let cls='wc-dot',lbl='';
-    if(!isFuture&&pct!==null){if(pct>=80){cls+=' full';lbl='✓';}else if(pct>0){cls+=' partial';lbl=pct+'%';}}
-    if(isToday) cls+=' today';
-    const cell=document.createElement('div');
-    cell.className='week-cell';
-    cell.innerHTML=`<div class="wc-lbl">${labels[i]}</div><div class="${cls}">${lbl}</div>`;
-    row.appendChild(cell);
-  }
-}
-
 // ── CALENDAR ─────────────────────────────────────────────
-let calYear,calMonth;
-(function(){const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();})();
-function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
-function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
+let calYear, calMonth;
+(function(){ const n=new Date(); calYear=n.getFullYear(); calMonth=n.getMonth(); })();
+
+function calPrev(){ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function calNext(){ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+
 function renderCalendar(){
   const MNAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calMonthTitle').textContent=MNAMES[calMonth]+' '+calYear;
@@ -787,7 +785,10 @@ function renderCalendar(){
   const now=new Date();
   const firstDay=new Date(calYear,calMonth,1).getDay();
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
-  for(let i=0;i<firstDay;i++){const c=document.createElement('div');c.className='cal-cell empty';c.innerHTML='<div class="cal-day-num"></div><div class="cal-dot"></div>';grid.appendChild(c);}
+  for(let i=0;i<firstDay;i++){
+    const c=document.createElement('div');c.className='cal-cell empty';
+    c.innerHTML='<div class="cal-day-num"></div><div class="cal-dot"></div>';grid.appendChild(c);
+  }
   for(let d=1;d<=daysInMonth;d++){
     const key=`${calYear}-${calMonth}-${d}`;
     const isToday=calYear===now.getFullYear()&&calMonth===now.getMonth()&&d===now.getDate();
@@ -803,7 +804,9 @@ function renderCalendar(){
     grid.appendChild(cell);
   }
 }
+
 function showCalDay(y,m,d,pct,isToday){
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const info=document.getElementById('calInfo');
   const ds=MONTHS[m]+' '+d+', '+y;
   if(pct===null){info.innerHTML=`<div class="cal-sel-date">${ds}</div><div class="cal-sel-sub">No data recorded</div>`;return;}
@@ -1152,10 +1155,572 @@ function toast(msg){
   setTimeout(()=>el.remove(),2200);
 }
 
+
+
+
+// ── MONTHLY PDF REPORT ───────────────────────────────────
+const REPORT_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let _reportMonth = new Date().getMonth();
+let _reportYear  = new Date().getFullYear();
+
+function openReportSheet() {
+  buildMonthPicker();
+  updateReportPreview();
+  document.getElementById('reportOverlay').classList.add('open');
+  document.getElementById('reportSheet').classList.add('open');
+}
+function closeReportSheet() {
+  document.getElementById('reportOverlay').classList.remove('open');
+  document.getElementById('reportSheet').classList.remove('open');
+}
+
+function buildMonthPicker() {
+  const now = new Date();
+  const picker = document.getElementById('monthPicker');
+  picker.innerHTML = '';
+  // Show last 6 months
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const m = d.getMonth(), y = d.getFullYear();
+    const chip = document.createElement('button');
+    chip.className = 'month-chip' + (m === _reportMonth && y === _reportYear ? ' active' : '');
+    chip.textContent = REPORT_MONTHS[m].slice(0,3) + ' ' + y;
+    chip.onclick = () => {
+      _reportMonth = m; _reportYear = y;
+      document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      updateReportPreview();
+    };
+    picker.appendChild(chip);
+  }
+}
+
+function getMonthData(month, year) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const now = new Date();
+  const data = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${year}-${month}-${d}`;
+    const date = new Date(year, month, d);
+    const isToday = date.toDateString() === now.toDateString();
+    const isFuture = date > now;
+    let pct = null;
+    if (isToday) {
+      pct = (S.tasks||[]).length ? Math.round((S.tasks||[]).filter(t=>t.done).length/(S.tasks||[]).length*100) : 0;
+    } else if (!isFuture) {
+      pct = (S.weekData||{})[key] !== undefined ? (S.weekData||{})[key] : null;
+    }
+    data.push({ d, date, key, pct, isToday, isFuture });
+  }
+  return data;
+}
+
+function updateReportPreview() {
+  const data = getMonthData(_reportMonth, _reportYear);
+  const recorded = data.filter(x => x.pct !== null && !x.isFuture);
+  const completed = recorded.filter(x => x.pct >= 80);
+  const avg = recorded.length ? Math.round(recorded.reduce((s,x)=>s+x.pct,0)/recorded.length) : 0;
+  // streak calc
+  let bestStreak = 0, cur = 0;
+  data.forEach(x => { if(x.pct!==null&&x.pct>=80){cur++;bestStreak=Math.max(bestStreak,cur);}else cur=0; });
+
+  const preview = document.getElementById('reportPreview');
+  preview.innerHTML = `
+    <div class="rp-title">${REPORT_MONTHS[_reportMonth]} ${_reportYear} — Preview</div>
+    <div class="rp-stat-row">
+      <div class="rp-stat"><div class="rp-stat-num">${avg}%</div><div class="rp-stat-lbl">Avg Score</div></div>
+      <div class="rp-stat"><div class="rp-stat-num">${completed.length}</div><div class="rp-stat-lbl">Full Days</div></div>
+      <div class="rp-stat"><div class="rp-stat-num">${bestStreak}</div><div class="rp-stat-lbl">Best Streak</div></div>
+      <div class="rp-stat"><div class="rp-stat-num">${recorded.length}</div><div class="rp-stat-lbl">Days Logged</div></div>
+    </div>
+    <div style="font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Daily Completion</div>
+    <div style="display:flex;gap:2px;align-items:flex-end;height:40px;">
+      ${data.map(x => {
+        const h = x.pct !== null ? Math.max(2, Math.round(x.pct*0.36)) : 2;
+        const col = x.pct === null ? 'var(--line)' : x.pct >= 80 ? 'var(--rust)' : x.pct > 0 ? 'var(--gold)' : 'var(--cream)';
+        return `<div style="flex:1;height:${h}px;background:${col};border-radius:1px 1px 0 0;min-width:2px"></div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function generatePDF() {
+  const btn = document.getElementById('reportGenBtn');
+  btn.classList.add('loading');
+  btn.querySelector('span').textContent = '⏳';
+
+  const data       = getMonthData(_reportMonth, _reportYear);
+  const profiles   = getProfiles();
+  const uid        = getActiveUid();
+  const user       = profiles.find(p=>p.uid===uid) || { name:'User', color:'#b85c38' };
+  const tasks      = S.tasks || [];
+  const recorded   = data.filter(x => x.pct !== null && !x.isFuture);
+  const completed  = recorded.filter(x => x.pct >= 80);
+  const avg        = recorded.length ? Math.round(recorded.reduce((s,x)=>s+x.pct,0)/recorded.length) : 0;
+  let bestStreak=0,cur=0,streakDates=[];
+  data.forEach(x=>{if(x.pct!==null&&x.pct>=80){cur++;if(cur>bestStreak){bestStreak=cur;streakDates=data.filter((_,i)=>i<=data.indexOf(x)&&i>data.indexOf(x)-cur).map(d=>d.d);}}else cur=0;});
+
+  // tag breakdown
+  const TAG_COLORS = {health:'#6b7c5e',mind:'#8a7040',work:'#b85c38',body:'#406080'};
+  const cats = {};
+  tasks.forEach(t=>{if(!cats[t.tag])cats[t.tag]={total:0,done:0};cats[t.tag].total++;if(t.done)cats[t.tag].done++;});
+
+  // bar chart SVG (mini)
+  const barW=6, barGap=2, barMaxH=60;
+  const barTotal = data.length*(barW+barGap);
+  let bars='';
+  data.forEach((x,i)=>{
+    const h=x.pct!==null?Math.max(2,Math.round(x.pct/100*barMaxH)):2;
+    const col=x.pct===null?'#ddd':x.pct>=80?'#b85c38':x.pct>0?'#c9a84c':'#ede8dc';
+    bars+=`<rect x="${i*(barW+barGap)}" y="${barMaxH-h}" width="${barW}" height="${h}" rx="1" fill="${col}"/>`;
+  });
+  const barSvg=`<svg width="${barTotal}" height="${barMaxH}" viewBox="0 0 ${barTotal} ${barMaxH}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+
+  // Calendar grid SVG
+  const firstDow = new Date(_reportYear, _reportMonth, 1).getDay();
+  const daysInMonth = data.length;
+  const calCols=7, cellSize=22, calPad=2;
+  let calCells='';
+  const DOW=['S','M','T','W','T','F','S'];
+  DOW.forEach((l,i)=>{ calCells+=`<text x="${i*( cellSize+calPad)+cellSize/2}" y="12" text-anchor="middle" font-size="8" fill="#8a8070" font-family="monospace">${l}</text>`; });
+  data.forEach((x,i)=>{
+    const col=(firstDow+i)%7, row=Math.floor((firstDow+i)/7)+1;
+    const cx=col*(cellSize+calPad)+cellSize/2, cy=row*(cellSize+calPad)+12+cellSize/2;
+    const fill=x.pct===null?'#f0ede8':x.pct>=80?'#b85c38':x.pct>0?'#c9a84c':'#ede8dc';
+    const textCol=x.pct>=80?'#fff':'#333';
+    calCells+=`<rect x="${col*(cellSize+calPad)}" y="${row*(cellSize+calPad)+14}" width="${cellSize}" height="${cellSize}" rx="3" fill="${fill}"/>`;
+    calCells+=`<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="8" fill="${textCol}" font-family="monospace" font-weight="${x.pct>=80?'bold':'normal'}">${x.d}</text>`;
+  });
+  const calRows=Math.ceil((firstDow+daysInMonth)/7)+1;
+  const calH=calRows*(cellSize+calPad)+20;
+  const calSvg=`<svg width="${calCols*(cellSize+calPad)}" height="${calH}" viewBox="0 0 ${calCols*(cellSize+calPad)} ${calH}" xmlns="http://www.w3.org/2000/svg">${calCells}</svg>`;
+
+  // tag donut
+  const PI=Math.PI, r=35, cx2=45, cy2=45;
+  let ang=-PI/2; let donutPaths=''; let legendRows='';
+  const catKeys=Object.keys(cats);
+  const totalT=tasks.length||1;
+  catKeys.forEach(tag=>{
+    const share=cats[tag].total/totalT, sweep=share*PI*2;
+    const x1=cx2+r*Math.cos(ang), y1=cy2+r*Math.sin(ang);
+    ang+=sweep;
+    const x2=cx2+r*Math.cos(ang), y2=cy2+r*Math.sin(ang), large=sweep>PI?1:0;
+    donutPaths+=`<path d="M ${cx2} ${cy2} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${TAG_COLORS[tag]||'#ccc'}" opacity="${cats[tag].done>0?1:0.25}"/>`;
+    legendRows+=`<tr><td style="padding:3px 8px 3px 0;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${TAG_COLORS[tag]};vertical-align:middle;margin-right:4px"></span>${tag}</td><td style="padding:3px 0;color:#8a8070;font-size:11px">${cats[tag].done}/${cats[tag].total} done</td></tr>`;
+  });
+  donutPaths+=`<circle cx="${cx2}" cy="${cy2}" r="18" fill="#f5f0e8"/>`;
+  donutPaths+=`<text x="${cx2}" y="${cy2+4}" text-anchor="middle" font-size="10" font-family="Bebas Neue,sans-serif" fill="#0f0d0a">${avg}%</text>`;
+  const donutSvg=`<svg width="90" height="90" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">${donutPaths}</svg>`;
+
+  // top tasks (by completion today)
+  const topTasks = [...tasks].sort((a,b)=>(b.done?1:0)-(a.done?1:0)).slice(0,5);
+
+  // Build full HTML for print
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>RITUAL — ${REPORT_MONTHS[_reportMonth]} ${_reportYear} Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Mono', monospace; background: #f5f0e8; color: #0f0d0a; padding: 40px; max-width: 800px; margin: 0 auto; }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 0.1em; line-height: 1; }
+  h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.1em; color: #b85c38; margin-bottom: 12px; margin-top: 28px; border-bottom: 1.5px solid rgba(15,13,10,0.12); padding-bottom: 6px; }
+  .cover { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 3px solid #0f0d0a; padding-bottom: 20px; }
+  .cover-left h1 span { color: #b85c38; }
+  .cover-sub { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: #8a8070; margin-top: 4px; }
+  .cover-user { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: ${user.color}; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 700; color: #fff; }
+  .user-name { font-family: 'DM Serif Display', serif; font-size: 1.1rem; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+  .stat-box { background: #ede8dc; border-radius: 6px; padding: 14px; text-align: center; }
+  .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; color: #b85c38; line-height: 1; }
+  .stat-lbl { font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; color: #8a8070; margin-top: 3px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-box { background: #ede8dc; border-radius: 6px; padding: 14px; }
+  .chart-title { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: #8a8070; margin-bottom: 10px; }
+  .task-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(15,13,10,0.1); }
+  .task-time { font-size: 0.65rem; color: #8a8070; width: 40px; }
+  .task-name { flex: 1; font-size: 0.8rem; }
+  .task-done { color: #b85c38; font-weight: 600; }
+  .tag-pill { font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border-radius: 2px; }
+  .tag-health { background: #e8f0e4; color: #6b7c5e; }
+  .tag-mind { background: #f0ede4; color: #8a7040; }
+  .tag-work { background: #f0e8e4; color: #b85c38; }
+  .tag-body { background: #e4eaf0; color: #406080; }
+  .intention-box { background: #ede8dc; border-left: 3px solid #b85c38; padding: 12px 16px; border-radius: 0 4px 4px 0; font-family: 'DM Serif Display', serif; font-style: italic; font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1.5px solid rgba(15,13,10,0.12); display: flex; justify-content: space-between; font-size: 0.62rem; color: #8a8070; letter-spacing: 0.1em; text-transform: uppercase; }
+  .heat-row { display: flex; gap: 2px; align-items: flex-end; height: 60px; }
+  .bar-label { font-size: 0.55rem; color: #8a8070; text-align: center; }
+  @media print { body { background: white; padding: 20px; } }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-left">
+    <h1>RITU<span>A</span>L</h1>
+    <div class="cover-sub">${REPORT_MONTHS[_reportMonth]} ${_reportYear} · Monthly Progress Report</div>
+    <div class="cover-sub" style="margin-top:4px">Generated ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+  </div>
+  <div class="cover-user">
+    <div class="avatar">${user.name.charAt(0).toUpperCase()}</div>
+    <div>
+      <div class="user-name">${user.name}</div>
+      <div style="font-size:0.62rem;color:#8a8070;margin-top:2px">🔥 ${S.streak||0} day streak</div>
+    </div>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-box"><div class="stat-num">${avg}%</div><div class="stat-lbl">Avg Score</div></div>
+  <div class="stat-box"><div class="stat-num">${completed.length}</div><div class="stat-lbl">Full Days</div></div>
+  <div class="stat-box"><div class="stat-num">${bestStreak}</div><div class="stat-lbl">Best Streak</div></div>
+  <div class="stat-box"><div class="stat-num">${recorded.length}</div><div class="stat-lbl">Days Tracked</div></div>
+</div>
+
+${S.intention ? `<div class="intention-box">"${S.intention}"</div>` : ''}
+
+<h2>Daily Completion</h2>
+<div class="chart-box" style="margin-bottom:20px;overflow-x:auto">${barSvg}</div>
+
+<div class="two-col">
+  <div>
+    <h2>Calendar View</h2>
+    <div class="chart-box" style="overflow:auto">${calSvg}</div>
+    <div style="margin-top:8px;display:flex;gap:12px;font-size:0.58rem;color:#8a8070;text-transform:uppercase;letter-spacing:0.1em">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#b85c38;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Full</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#c9a84c;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Partial</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#ede8dc;border:1px solid #ddd;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Missed</span>
+    </div>
+  </div>
+  <div>
+    <h2>By Category</h2>
+    <div class="chart-box">
+      <div style="display:flex;gap:12px;align-items:center">
+        ${donutSvg}
+        <table style="border-collapse:collapse;font-size:12px">${legendRows}</table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Routine Tasks</h2>
+<div style="margin-bottom:20px">
+  ${tasks.map(t=>`
+    <div class="task-row">
+      <div class="task-time">${t.time}</div>
+      <div class="task-name ${t.done?'task-done':''}">${t.name}</div>
+      <span class="tag-pill tag-${t.tag}">${t.tag}</span>
+      <div style="font-size:0.75rem">${t.done?'✓':''}</div>
+    </div>`).join('')}
+</div>
+
+<div class="footer">
+  <span>RITUAL — Daily Routine Tracker</span>
+  <span>${REPORT_MONTHS[_reportMonth]} ${_reportYear} · ${user.name}</span>
+</div>
+
+<script>window.onload=()=>window.print()<\/script>
+</body>
+</html>`;
+
+  // Open in new window and print
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  } else {
+    // Fallback: download as HTML
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ritual-report-${_reportYear}-${String(_reportMonth+1).padStart(2,'0')}.html`;
+    a.click();
+  }
+
+  setTimeout(() => {
+    btn.classList.remove('loading');
+    btn.querySelector('span').textContent = '📄';
+    closeReportSheet();
+    toast('Report ready — print or save as PDF');
+  }, 800);
+}
+// ── BACKUP SYSTEM ────────────────────────────────────────
+const BACKUP_KEY = 'ritual_backups'; // stores array of {id, label, ts, data}
+
+function getBackups() {
+  try { return JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveBackups(arr) { localStorage.setItem(BACKUP_KEY, JSON.stringify(arr)); }
+
+function collectAllData() {
+  // Snapshot every profile + their user data
+  const profiles = getProfiles();
+  const userData = {};
+  profiles.forEach(p => {
+    try { userData[p.uid] = JSON.parse(localStorage.getItem(userKey(p.uid)) || 'null'); } catch(e) {}
+  });
+  return {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    activeUid: getActiveUid(),
+    profiles,
+    userData,
+  };
+}
+
+function backupExport() {
+  const data = collectAllData();
+  const now = new Date();
+  const label = `Backup ${now.toLocaleDateString()} ${now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+
+  // Save internally
+  const backups = getBackups();
+  const id = 'bk_' + Date.now();
+  backups.unshift({ id, label, ts: now.toISOString(), data });
+  // Keep max 20 backups
+  if (backups.length > 20) backups.splice(20);
+  saveBackups(backups);
+
+  // Also download as .json file
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ritual-backup-${now.toISOString().slice(0,10)}.json`;
+  a.click();
+
+  toast('Backup saved ✓');
+}
+
+function openBackupManager() {
+  renderBackupList();
+  document.getElementById('backupOverlay').classList.add('open');
+  document.getElementById('backupSheet').classList.add('open');
+}
+function closeBackupManager() {
+  document.getElementById('backupOverlay').classList.remove('open');
+  document.getElementById('backupSheet').classList.remove('open');
+}
+
+function renderBackupList() {
+  const backups = getBackups();
+  const list = document.getElementById('backupList');
+  list.innerHTML = '';
+
+  if (!backups.length) {
+    list.innerHTML = '<div class="bak-empty">No saved backups yet.<br>Tap "Save New Backup" to create one.</div>';
+    return;
+  }
+
+  backups.forEach(bk => {
+    const d = new Date(bk.ts);
+    const profiles = bk.data.profiles || [];
+    const meta = profiles.map(p => p.name).join(', ') || 'No profiles';
+
+    const item = document.createElement('div');
+    item.className = 'backup-item';
+    item.innerHTML = `
+      <div style="font-size:1.4rem;flex-shrink:0">💾</div>
+      <div class="backup-item-info">
+        <div class="backup-item-name">${bk.label}</div>
+        <div class="backup-item-meta">${d.toLocaleDateString()} · ${profiles.length} profile${profiles.length!==1?'s':''}: ${meta}</div>
+      </div>
+      <div class="backup-item-actions">
+        <button class="bak-btn" onclick="downloadBackup('${bk.id}')">↓</button>
+        <button class="bak-btn primary" onclick="restoreFromSaved('${bk.id}')">Restore</button>
+        <button class="bak-btn danger" onclick="deleteBackup('${bk.id}', this)">✕</button>
+      </div>`;
+    list.appendChild(item);
+  });
+}
+
+function downloadBackup(id) {
+  const bk = getBackups().find(b => b.id === id);
+  if (!bk) return;
+  const blob = new Blob([JSON.stringify(bk.data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ritual-backup-${new Date(bk.ts).toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function deleteBackup(id, btn) {
+  if (btn.dataset.confirming !== 'yes') {
+    btn.dataset.confirming = 'yes'; btn.textContent = '?';
+    btn.style.background = 'var(--rust)'; btn.style.color = 'var(--paper)';
+    setTimeout(() => { btn.dataset.confirming=''; btn.textContent='✕'; btn.style.background=''; btn.style.color=''; }, 2500);
+    return;
+  }
+  const backups = getBackups().filter(b => b.id !== id);
+  saveBackups(backups);
+  renderBackupList();
+  toast('Backup deleted');
+}
+
+function restoreFromSaved(id) {
+  const bk = getBackups().find(b => b.id === id);
+  if (!bk) return;
+  _pendingRestore = bk.data;
+  const profiles = bk.data.profiles || [];
+  document.getElementById('restoreConfirmText').innerHTML =
+    `<b>Restore this backup?</b><br>This will replace all current data with:<br>` +
+    `${profiles.length} profile(s): ${profiles.map(p=>p.name).join(', ')}<br>` +
+    `<span style="color:var(--rust)">Your current data will be overwritten.</span>`;
+  closeBackupManager();
+  openRestoreSheet();
+  document.getElementById('restoreConfirm').classList.add('show');
+}
+
+// ── FILE RESTORE ─────────────────────────────────────────
+let _pendingRestore = null;
+
+function openRestoreSheet() {
+  document.getElementById('restoreError').textContent = '';
+  document.getElementById('restoreConfirm').classList.remove('show');
+  document.getElementById('fileInput').value = '';
+  document.getElementById('restoreOverlay').classList.add('open');
+  document.getElementById('restoreSheet').classList.add('open');
+}
+function closeRestoreSheet() {
+  document.getElementById('restoreOverlay').classList.remove('open');
+  document.getElementById('restoreSheet').classList.remove('open');
+  _pendingRestore = null;
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.profiles || !data.userData) throw new Error('Invalid backup file');
+      _pendingRestore = data;
+      const profiles = data.profiles || [];
+      const exported = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'Unknown date';
+      document.getElementById('restoreConfirmText').innerHTML =
+        `<b>Ready to restore</b><br>` +
+        `Exported: ${exported}<br>` +
+        `${profiles.length} profile(s): ${profiles.map(p=>p.name).join(', ')}<br>` +
+        `<span style="color:var(--rust)">This will replace all current data.</span>`;
+      document.getElementById('restoreConfirm').classList.add('show');
+      document.getElementById('restoreError').textContent = '';
+    } catch(err) {
+      document.getElementById('restoreError').textContent = 'Invalid backup file. Please choose a valid ritual-backup-*.json';
+      document.getElementById('restoreConfirm').classList.remove('show');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmRestore() {
+  if (!_pendingRestore) return;
+  const data = _pendingRestore;
+
+  // Auto-save current state as backup first
+  const currentData = collectAllData();
+  const backups = getBackups();
+  backups.unshift({ id: 'bk_pre_'+Date.now(), label: 'Auto-save before restore ' + new Date().toLocaleString(), ts: new Date().toISOString(), data: currentData });
+  if (backups.length > 20) backups.splice(20);
+  saveBackups(backups);
+
+  // Restore profiles
+  saveProfiles(data.profiles || []);
+  // Restore user data
+  Object.keys(data.userData || {}).forEach(uid => {
+    if (data.userData[uid]) localStorage.setItem(userKey(uid), JSON.stringify(data.userData[uid]));
+  });
+  // Set active uid
+  if (data.activeUid) setActiveUid(data.activeUid);
+  else if (data.profiles && data.profiles.length) setActiveUid(data.profiles[0].uid);
+
+  S = loadState();
+  closeRestoreSheet();
+  renderAll();
+  renderTopbarAvatar();
+  toast('✓ Backup restored successfully!');
+}
+
+function cancelRestore() {
+  _pendingRestore = null;
+  document.getElementById('restoreConfirm').classList.remove('show');
+}
+
+// Drag & drop support
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('dropZone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) { const dt = new DataTransfer(); dt.items.add(file); document.getElementById('fileInput').files = dt.files; handleFileSelect({target:{files:[file]}}); }
+  });
+});
 // ── INIT ─────────────────────────────────────────────────
 function renderAll(){renderHeader();renderTasks();renderJournal();}
 initProfileScreen();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
+
+<!-- BACKUP MANAGER SHEET -->
+<div class="backup-sheet-overlay" id="backupOverlay" onclick="closeBackupManager()"></div>
+<div class="backup-sheet" id="backupSheet">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div class="sheet-title" style="margin:0">Saved Backups</div>
+    <button class="pp-close" onclick="closeBackupManager()">✕</button>
+  </div>
+  <div id="backupList"></div>
+  <div style="margin-top:12px;">
+    <button class="add-fab" onclick="backupExport()">+ Save New Backup</button>
+  </div>
+</div>
+
+<!-- RESTORE FILE SHEET -->
+<div class="backup-sheet-overlay" id="restoreOverlay" onclick="closeRestoreSheet()"></div>
+<div class="backup-sheet" id="restoreSheet">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div class="sheet-title" style="margin:0">Restore Backup</div>
+    <button class="pp-close" onclick="closeRestoreSheet()">✕</button>
+  </div>
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="drop-zone-icon">📂</div>
+    <div class="drop-zone-text">Tap to choose a backup file</div>
+    <div class="drop-zone-sub">ritual-backup-*.json</div>
+  </div>
+  <input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleFileSelect(event)">
+  <div class="restore-confirm" id="restoreConfirm">
+    <div class="restore-confirm-text" id="restoreConfirmText"></div>
+    <div class="restore-actions">
+      <button class="bak-btn primary" onclick="confirmRestore()">Restore Now</button>
+      <button class="bak-btn" onclick="cancelRestore()">Cancel</button>
+    </div>
+  </div>
+  <div class="pin-error" id="restoreError" style="margin-top:8px;"></div>
+</div>
+
+<!-- REPORT SHEET -->
+<div class="report-sheet-overlay" id="reportOverlay" onclick="closeReportSheet()"></div>
+<div class="report-sheet" id="reportSheet">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div class="sheet-title" style="margin:0">Monthly Report</div>
+    <button class="pp-close" onclick="closeReportSheet()">✕</button>
+  </div>
+  <div class="field">
+    <div class="field-label">Select Month</div>
+    <div class="month-picker" id="monthPicker"></div>
+  </div>
+  <div class="report-preview" id="reportPreview"></div>
+  <button class="report-gen-btn" id="reportGenBtn" onclick="generatePDF()">
+    <span>📄</span> Download PDF Report
+  </button>
+</div>
 </body>
 </html>
